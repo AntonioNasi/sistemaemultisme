@@ -84,10 +84,15 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js').catch((err) =>
-                console.warn('SW não registrado:', err)
-            );
+              navigator.serviceWorker.register('./sw.js', { scope: './' })
+                .then((registration) => {
+                  console.log('Service Worker registrado com sucesso:', registration);
+                })
+                .catch((err) => {
+                  console.warn('Falha ao registrar o Service Worker:', err);
+                });
             });
+          }
         }
     </script>
 </body>
