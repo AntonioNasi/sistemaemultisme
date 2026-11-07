@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#39a6de" />
+  <title>Painel Admin - E-Multi SME</title>
+  <link rel="manifest" href="manifest.json" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="header-brand">
+      <img src="assets/logo.png" alt="Logo" class="header-logo" onerror="this.style.display='none'" />
+      <span>Painel Admin</span>
+    </div>
+    <button id="btnLogout" class="btn btn-outline btn-sm">Sair</button>
+  </header>
+
+  <!-- CONTEÚDO PRINCIPAL -->
+  <main class="app-main">
+    
+    <!-- ABAS DO ADMIN -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="tabUsers">Profissionais</button>
+      <button class="tab-btn" data-tab="tabFields">Configurar Relatório</button>
+    </div>
+
+    <!-- ABA 1: PROFISSIONAIS -->
+    <section id="tabUsers" class="tab-content active">
+      <div class="section-header">
+        <h2>Profissionais Cadastrados</h2>
+        <button class="btn btn-warning btn-sm" id="btnReportGeral">📊 Relatório Geral (PDF)</button>
+        <button class="btn btn-primary btn-sm" id="btnNewUser">+ Novo Profissional</button>
+      </div>
+
+      <div id="usersList" class="users-grid">
+        <!-- Cards de usuários injetados via JS -->
+        <p class="loading-text">Carregando...</p>
+      </div>
+    </section>
+
+    <!-- ABA 2: CAMPOS DO RELATÓRIO -->
+    <section id="tabFields" class="tab-content">
+      <div class="section-header">
+        <h2>Campos do Relatório</h2>
+        <button class="btn btn-success btn-sm" id="btnSaveFields">Salvar Configuração</button>
+      </div>
+      <p class="help-text">Arraste para reordenar. Você pode renomear os campos fixos, torná-los opcionais, ocultá-los ou adicionar campos extras.</p>
+      
+      <div id="fieldsList" class="fields-list">
+        <!-- Campos injetados via JS -->
+      </div>
+
+      <div class="add-field-box">
+        <h3>Adicionar novo campo</h3>
+        <div class="form-row">
+          <input type="text" id="newFieldLabel" placeholder="Nome do campo (ex: Turma)" />
+          <select id="newFieldType">
+            <option value="text">Texto curto</option>
+            <option value="textarea">Texto longo</option>
+            <option value="number">Número</option>
+            <option value="date">Data</option>
+          </select>
+          <button class="btn btn-warning" id="btnAddField">Adicionar</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: NOVO PROFISSIONAL -->
+  <div id="modalUser" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Novo Profissional</h3>
+        <button class="modal-close" id="btnCloseModal">&times;</button>
+      </div>
+      <form id="formNewUser" class="modal-form">
+        
+        <div class="form-group">
+          <label>Nome Completo *</label>
+          <input type="text" id="uName" required />
+        </div>
+        
+        <div class="form-group">
+          <label>Cargo / Função *</label>
+          <select id="uRole" required>
+            <option value="">Selecione...</option>
+            <option value="Pedagogo(a)">Pedagogo(a)</option>
+            <option value="Psicólogo(a)">Psicólogo(a)</option>
+            <option value="Nutricionista">Nutricionista</option>
+            <option value="Assistente Social">Assistente Social</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>E-mail *</label>
+          <input type="email" id="uEmail" required />
+        </div>
+
+        <div class="form-group">
+          <label>Senha Inicial *</label>
+          <input type="password" id="uPassword" required minlength="6" placeholder="Mínimo 6 caracteres" />
+        </div>
+
+        <div class="form-group">
+          <label>Foto 3x4 (opcional)</label>
+          <input type="file" id="uPhoto" accept="image/*" />
+        </div>
+
+        <div class="form-error" id="modalError"></div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" id="btnCancelUser">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveUser">Cadastrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

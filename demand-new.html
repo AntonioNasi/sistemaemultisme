@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#39a6de" />
+  <title>Nova Demanda - E-Multi SME</title>
+  <link rel="manifest" href="manifest.json" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header class="app-header">
+    <a href="professional.html" class="btn btn-outline btn-sm">← Voltar</a>
+    <div class="header-brand">Nova Demanda</div>
+    <div style="width: 60px;"></div>
+  </header>
+
+  <main class="app-main">
+    <form id="formDemand" class="report-form">
+      <p class="help-text" style="margin-bottom: 20px;">
+        Preencha os dados iniciais para abrir um novo caso. Após criar, você poderá adicionar registros e anexos ao longo do tempo.
+      </p>
+
+      <div class="form-group">
+        <label for="dTema">Tema / Título do Caso *</label>
+        <input type="text" id="dTema" required placeholder="Ex: Dificuldade de leitura - Aluno João" />
+      </div>
+
+      <div class="form-group">
+        <label for="dEscola">Escola *</label>
+        <select id="dEscola" required>
+          <option value="">Selecione a escola...</option>
+          <!-- Preenchido via JS -->
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="dObs">Observações Iniciais (opcional)</label>
+        <textarea id="dObs" rows="3" placeholder="Breve resumo do motivo da abertura da demanda..."></textarea>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary btn-block" id="btnSubmitDemand">
+          Abrir Demanda
+        </button>
+      </div>
+    </form>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+  <script src="js/firebase-config.js"></script>
+  <script>
+    let currentUserProfile = null;
+    const form = document.getElementById('formDemand');
+    const btnSubmit = document.getElementById('btnSubmitDemand');
+    const selectEscola = document.getElementById('dEscola');
+
+    // Preenche o dropdown de escolas
+    SEED_ESCOLAS.forEach(escola => {
+      const opt = document.createElement('option');
+      opt.value = escola;
+      opt.textContent = escola;
+      selectEscola.appendChild(opt);
+    });
+
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      const doc = await db.collection(COLLECTION_USERS).doc(user.uid).get();
+      if (doc.exists) {
+        currentUserProfile = { uid: user.uid, ...doc.data() };
+      } else {
+        window.location.href = 'professional.html';
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const tema = document.getElementById('dTema').value.trim();
+      const escola = document.getElementById('dEscola').value;
+      const obsInicial = document.getElementById('dObs').value.trim();
+
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = 'Abrindo...';
+
+      try {
+        // Cria a estrutura da demanda
+        const novaDemanda = {
+          uidProfissional: currentUserProfile.uid,
+          nomeProfissional: currentUserProfile.nomeCompleto,
+          cargoProfissional: currentUserProfile.cargo,
+          
+          tema: tema,
+          escola: escola,
+          status: 'aberta',
+          
+          registros: [],
+          anexos: [],
+          
+          // Se houver observação inicial, já vira o primeiro registro
+          registros: obsInicial ? [{
+            id: 'reg_' + Date.now(),
+            data: new Date().toISOString(),
+            texto: 'ABERTURA DA DEMANDA: ' + obsInicial
+          }] : [],
+          
+          criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+          atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        const docRef = await db.collection('demandas').add(novaDemanda);
+        
+        alert('Demanda aberta com sucesso!');
+        window.location.href = `demand-view.html?id=${docRef.id}`;
+
+      } catch (err) {
+        console.error('Erro ao abrir demanda:', err);
+        alert('Erro ao abrir a demanda: ' + err.message);
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = 'Abrir Demanda';
+      }
+    });
+  </script>
+</body>
+</html>

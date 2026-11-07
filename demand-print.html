@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Relatório Final - E-Multi SME</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body class="print-body">
+
+  <header class="app-header no-print">
+    <a href="demand-view.html?id=ID_DA_DEMANDA" id="btnBack" class="btn btn-outline btn-sm">← Voltar</a>
+    <div class="header-brand">Relatório Final</div>
+    <div style="width: 60px;"></div>
+  </header>
+
+  <main class="app-main">
+    
+    <div class="print-actions no-print">
+      <button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir</button>
+      <button class="btn btn-success" id="btnExportPDF">📄 Salvar em PDF</button>
+    </div>
+
+    <!-- ÁREA DO DOCUMENTO -->
+    <div id="reportDocument" class="report-document">
+      
+      <!-- Cabeçalho -->
+      <div class="doc-header">
+        <img src="assets/logo.png" alt="Logo" class="doc-logo" onerror="this.style.display='none'" />
+        <div class="doc-header-text">
+          <h1>Secretaria Municipal de Educação</h1>
+          <h2>Capistrano - CE</h2>
+          <h3>Sistema E-Multi SME</h3>
+          <p>Relatório de Conclusão de Demanda</p>
+          <p style="text-transform: none; margin-top: 8px; font-size: 0.85rem; color: #888;">Encerrado em: <span id="docDate">Carregando...</span></p>
+        </div>
+      </div>
+
+      <!-- Informações Básicas da Demanda -->
+      <div class="doc-section">
+        <h3 class="doc-section-title">Informações da Demanda</h3>
+        <div class="doc-field"><strong>Tema:</strong> <p id="docTema">...</p></div>
+        <div class="doc-field"><strong>Escola:</strong> <p id="docEscola">...</p></div>
+        <div class="doc-field"><strong>Tipo de Atividade:</strong> <p id="docTipo">...</p></div>
+        <div class="doc-field"><strong>Abertura:</strong> <p id="docAbertura">...</p></div>
+      </div>
+
+      <!-- Relatório Final -->
+      <div class="doc-section">
+        <h3 class="doc-section-title">Relatório de Conclusão</h3>
+        <div class="doc-field"><strong>Descrição / Síntese:</strong> <p id="docDescricao" style="white-space: pre-wrap;">...</p></div>
+        <div class="doc-field"><strong>Encaminhamentos:</strong> <p id="docEncaminhamentos" style="white-space: pre-wrap;">...</p></div>
+      </div>
+
+      <!-- Fluxo de Trabalho -->
+      <div class="doc-section">
+        <h3 class="doc-section-title">Fluxo de Trabalho (Registros)</h3>
+        <div id="docTimeline">...</div>
+      </div>
+
+      <!-- Anexos -->
+      <div class="doc-section">
+        <h3 class="doc-section-title">Anexos</h3>
+        <div id="docAnexos">...</div>
+      </div>
+
+      <!-- Assinatura -->
+      <div class="doc-signature">
+        <div class="signature-line"></div>
+        <p id="sigName">Nome do Profissional</p>
+        <span id="sigRole">Cargo</span>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+  <script src="js/firebase-config.js"></script>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const demandId = urlParams.get('id');
+    if (!demandId) window.location.href = 'professional.html';
+
+    // Ajusta o botão voltar dinamicamente
+    document.getElementById('btnBack').href = `demand-view.html?id=${demandId}`;
+
+    // Funções de formatação de data
+    const formatDate = (timestamp) => {
+      if (!timestamp) return '...';
+      return timestamp.toDate().toLocaleDateString('pt-BR') + ' às ' + timestamp.toDate().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+    };
+    const formatDateShort = (dateString) => {
+      if (!dateString) return '';
+      const parts = dateString.split('T')[0].split('-');
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    };
+
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      try {
+        const doc = await db.collection('demandas').doc(demandId).get();
+        if (!doc.exists) throw new Error('Demanda não encontrada.');
+        
+        const data = doc.data();
+        if (data.status !== 'concluida') {
+          alert('Esta demanda ainda não foi concluída.');
+          window.location.href = `demand-view.html?id=${demandId}`;
+          return;
+        }
+
+        // Preenche os dados
+        document.getElementById('docTema').textContent = data.tema;
+        document.getElementById('docEscola').textContent = data.escola;
+        document.getElementById('docTipo').textContent = data.tipoAtividadeFinal || 'Não informado';
+        document.getElementById('docDescricao').textContent = data.relatorioDescricao || 'Sem descrição.';
+        document.getElementById('docEncaminhamentos').textContent = data.relatorioEncaminhamentos || 'Sem encaminhamentos.';
+        document.getElementById('docAbertura').textContent = formatDate(data.criadoEm);
+        document.getElementById('docDate').textContent = formatDate(data.concluidoEm);
+        
+        document.getElementById('sigName').textContent = data.nomeProfissional;
+        document.getElementById('sigRole').textContent = data.cargoProfissional;
+
+        // Preenche Timeline
+        const timelineDiv = document.getElementById('docTimeline');
+        const registros = data.registros || [];
+        if (registros.length === 0) {
+          timelineDiv.innerHTML = '<p class="text-muted">Nenhum registro adicional.</p>';
+        } else {
+          // Ordena por data do registro (mais antigo para o mais novo)
+          registros.sort((a,b) => new Date(a.data) - new Date(b.data));
+          timelineDiv.innerHTML = '<ol class="doc-timeline-list">';
+          registros.forEach(r => {
+            const dt = formatDateShort(r.data);
+            timelineDiv.innerHTML += `<li><strong>${dt}</strong> - ${r.texto}</li>`;
+          });
+          timelineDiv.innerHTML += '</ol>';
+        }
+
+        // Preenche Anexos
+        const anexosDiv = document.getElementById('docAnexos');
+        const anexos = data.anexos || [];
+        if (anexos.length === 0) {
+          anexosDiv.innerHTML = '<p class="text-muted">Nenhum documento anexado.</p>';
+        } else {
+          anexosDiv.innerHTML = '<ul class="doc-anexos-list">';
+          anexos.forEach(a => {
+            anexosDiv.innerHTML += `<li>📎 ${a.nome}</li>`;
+          });
+          anexosDiv.innerHTML += '</ul>';
+        }
+
+      } catch (err) {
+        console.error(err);
+        alert('Erro ao carregar o relatório: ' + err.message);
+      }
+    });
+
+    // Lógica do PDF
+    document.getElementById('btnExportPDF').addEventListener('click', async () => {
+      const btn = document.getElementById('btnExportPDF');
+      btn.textContent = 'Gerando PDF...';
+      btn.disabled = true;
+
+      const element = document.getElementById('reportDocument');
+      
+      try {
+        const canvas = await html2canvas(element, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`Relatorio_${demandId}.pdf`);
+      } catch (err) {
+        console.error('Erro ao gerar PDF:', err);
+        alert('Erro ao gerar o PDF.');
+      } finally {
+        btn.textContent = '📄 Salvar em PDF';
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

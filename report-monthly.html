@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Relatório Mensal - E-Multi SME</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body class="print-body">
+
+  <header class="app-header no-print">
+    <a href="professional.html" class="btn btn-outline btn-sm">← Voltar</a>
+    <div class="header-brand">Relatório Mensal</div>
+    <div style="width: 60px;"></div>
+  </header>
+
+  <main class="app-main">
+    <div class="print-actions no-print">
+      <button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir</button>
+      <button class="btn btn-success" id="btnExportPDF">📄 Salvar em PDF</button>
+    </div>
+
+    <div id="reportDocument" class="report-document">
+      <div class="doc-header">
+        <img src="assets/logo.png" alt="Logo" class="doc-logo" onerror="this.style.display='none'" />
+        <div class="doc-header-text">
+          <h1>Secretaria Municipal de Educação</h1>
+          <h2>Capistrano - CE</h2>
+          <h3>Sistema E-Multi SME</h3>
+          <p>Relatório Mensal de Atividades</p>
+        </div>
+      </div>
+
+      <div class="doc-content" id="docContent">
+        <p class="loading-text">Carregando dados...</p>
+      </div>
+      
+      <div class="doc-signature">
+        <div class="signature-line"></div>
+        <p id="sigName">Nome do Profissional</p>
+        <span id="sigRole">Cargo</span>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+  <script src="js/firebase-config.js"></script>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const mes = parseInt(urlParams.get('mes'));
+    const ano = parseInt(urlParams.get('ano'));
+    const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+    if (isNaN(mes) || isNaN(ano)) window.location.href = 'professional.html';
+
+    const formatDateShort = (dateString) => {
+      if (!dateString) return '';
+      const parts = dateString.split('T')[0].split('-');
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    };
+
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      try {
+        const doc = await db.collection('demandas').where('uidProfissional', '==', user.uid).get();
+        
+        // Filtra demandas concluídas no mês/ano específico
+        const demands = [];
+        doc.forEach(d => {
+          const data = d.data();
+          if (data.status === 'concluida' && data.concluidoEm) {
+            const dt = data.concluidoEm.toDate();
+            if (dt.getMonth() === mes && dt.getFullYear() === ano) {
+              demands.push(data);
+            }
+          }
+        });
+
+        // Ordena pela data
+        demands.sort((a, b) => a.concluidoEm.toDate() - b.concluidoEm.toDate());
+
+        document.getElementById('sigName').textContent = user.displayName || "Profissional";
+        // Como não temos o nome no Auth, puxamos do primeiro relatório ou do banco (se houver)
+        if (demands.length > 0) {
+          document.getElementById('sigName').textContent = demands[0].nomeProfissional;
+          document.getElementById('sigRole').textContent = demands[0].cargoProfissional;
+        } else {
+           const uDoc = await db.collection(COLLECTION_USERS).doc(user.uid).get();
+           document.getElementById('sigName').textContent = uDoc.data().nomeCompleto;
+           document.getElementById('sigRole').textContent = uDoc.data().cargo;
+        }
+
+        const contentDiv = document.getElementById('docContent');
+        
+        if (demands.length === 0) {
+          contentDiv.innerHTML = `<p class="text-muted" style="text-align:center; margin-top:40px;">Nenhuma atividade concluída em ${monthNames[mes]} de ${ano}.</p>`;
+          return;
+        }
+
+        contentDiv.innerHTML = `<p style="margin-bottom: 20px; font-weight: 600; font-size: 1.1rem;">Atividades concluídas em ${monthNames[mes]} de ${ano}:</p>`;
+        
+        demands.forEach(d => {
+          contentDiv.innerHTML += `
+            <div class="doc-section" style="border: 1px solid #eee; padding: 15px; border-radius: 8px; background: #fafafa;">
+              <h4 style="color: var(--azul); margin-bottom: 8px;">${d.tema}</h4>
+              <p style="font-size: 0.85rem; margin-bottom: 12px;"><strong>Escola:</strong> ${d.escola} | <strong>Tipo:</strong> ${d.tipoAtividadeFinal || 'Não informado'}</p>
+              
+              <p style="font-size: 0.85rem; margin-bottom: 4px;"><strong>Relatório Final:</strong></p>
+              <p style="font-size: 0.85rem; white-space: pre-wrap; margin-bottom: 12px; color: #444;">${d.relatorioDescricao}</p>
+
+              <p style="font-size: 0.85rem; margin-bottom: 4px;"><strong>Fluxo de Trabalho:</strong></p>
+              <ul style="font-size: 0.8rem; padding-left: 20px; color: #444;">
+                ${(d.registros || []).map(r => `<li>${formatDateShort(r.data)} - ${r.texto}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+        });
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById('docContent').innerHTML = '<p class="error-text">Erro ao carregar dados.</p>';
+      }
+    });
+
+    document.getElementById('btnExportPDF').addEventListener('click', async () => {
+      const btn = document.getElementById('btnExportPDF');
+      btn.textContent = 'Gerando PDF...';
+      btn.disabled = true;
+
+      const element = document.getElementById('reportDocument');
+      
+      try {
+        const canvas = await html2canvas(element, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`Relatorio_Mensal_${monthNames[mes]}_${ano}.pdf`);
+      } catch (err) {
+        console.error('Erro ao gerar PDF:', err);
+        alert('Erro ao gerar o PDF.');
+      } finally {
+        btn.textContent = '📄 Salvar em PDF';
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

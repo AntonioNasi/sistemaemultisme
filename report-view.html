@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Visualizar Relatório - E-Multi SME</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- Biblioteca jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body class="print-body">
+
+  <header class="app-header no-print">
+    <a href="report-history.html" class="btn btn-outline btn-sm">← Voltar</a>
+    <div class="header-brand">Visualizar Relatório</div>
+    <div style="width: 60px;"></div>
+  </header>
+
+  <main class="app-main">
+    
+    <!-- Ações (Imprimir / PDF) -->
+    <div class="print-actions no-print">
+      <button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir</button>
+      <button class="btn btn-success" id="btnExportPDF">📄 Salvar em PDF</button>
+    </div>
+
+    <!-- ÁREA DO DOCUMENTO (O que vai para o PDF e Impressão) -->
+    <div id="reportDocument" class="report-document">
+      
+      <!-- Cabeçalho do Documento -->
+      <div class="doc-header">
+        <img src="assets/logo.png" alt="Logo" class="doc-logo" onerror="this.style.display='none'" />
+        <div class="doc-header-text">
+          <h1>Secretaria Municipal de Educação</h1>
+          <h2>Capistrano - CE</h2>
+          <h3>Equipe Multiprofissional</h3>
+          <p>Relatório de Atividade</p>
+        </div>
+      </div>
+
+      <!-- Corpo Dinâmico -->
+      <div id="docContent" class="doc-content">
+        <p class="loading-text">Carregando dados...</p>
+      </div>
+
+      <!-- Assinatura -->
+      <div class="doc-signature">
+        <div class="signature-line"></div>
+        <p id="sigName">Nome do Profissional</p>
+        <span id="sigRole">Cargo</span>
+      </div>
+
+      <p style="text-transform: none; text-align: center; margin-top: 8px; font-size: 12px; color: #888;">Relatório gerado em: <span id="docDate">Carregando...</span></p>
+
+    </div>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+  <script src="js/firebase-config.js"></script>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const reportId = urlParams.get('id');
+    const docContent = document.getElementById('docContent');
+
+    if (!reportId) {
+      window.location.href = 'report-history.html';
+    }
+
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      try {
+        const doc = await db.collection(COLLECTION_REPORTS).doc(reportId).get();
+        if (!doc.exists) throw new Error('Relatório não encontrado.');
+
+        const data = doc.data();
+        
+        // Preenche assinatura
+        document.getElementById('sigName').textContent = data.nomeProfissional;
+        document.getElementById('sigRole').textContent = data.cargoProfissional;
+
+        // Preenche o conteúdo
+        docContent.innerHTML = '';
+
+        // Preenche a data do documento
+        if (data.criadoEm) {
+          const dataFormatada = data.criadoEm.toDate().toLocaleDateString('pt-BR', { 
+            day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+          });
+          document.getElementById('docDate').textContent = dataFormatada;
+        } else {
+          document.getElementById('docDate').textContent = 'Data não disponível';
+        }
+
+        // Renderiza campos fixos (se existirem)
+        const fixedFields = [
+          { key: 'escola', label: 'Escola' },
+          { key: 'tipoAtividade', label: 'Tipo de atividade' },
+          { key: 'descricao', label: 'Descrição detalhada' },
+          { key: 'encaminhamentos', label: 'Encaminhamentos' }
+        ];
+
+        fixedFields.forEach(f => {
+          if (data[f.key]) {
+            docContent.innerHTML += `
+              <div class="doc-field">
+                <strong>${f.label}:</strong>
+                <p>${data[f.key]}</p>
+              </div>
+            `;
+          }
+        });
+
+        // Renderiza campos extras (dinâmicos)
+        if (data.camposExtras && Object.keys(data.camposExtras).length > 0) {
+          // Para saber o rótulo do campo extra, buscamos a config do profissional
+          const userDoc = await db.collection(COLLECTION_USERS).doc(data.uidProfissional).get();
+          const userData = userDoc.data();
+          const fieldsConfig = userData.camposRelatorio || [];
+
+          for (const [key, value] of Object.entries(data.camposExtras)) {
+            const fieldConf = fieldsConfig.find(f => f.key === key);
+            const label = fieldConf ? fieldConf.label : key;
+            
+            docContent.innerHTML += `
+              <div class="doc-field">
+                <strong>${label}:</strong>
+                <p>${value}</p>
+              </div>
+            `;
+          }
+        }
+
+      } catch (err) {
+        console.error(err);
+        docContent.innerHTML = '<p class="error-text">Erro ao carregar o relatório.</p>';
+      }
+    });
+
+    // Lógica para gerar o PDF com jsPDF + html2canvas
+    document.getElementById('btnExportPDF').addEventListener('click', async () => {
+      const btn = document.getElementById('btnExportPDF');
+      btn.textContent = 'Gerando PDF...';
+      btn.disabled = true;
+
+      const element = document.getElementById('reportDocument');
+      
+      try {
+        const canvas = await html2canvas(element, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`Relatorio_${reportId}.pdf`);
+      } catch (err) {
+        console.error('Erro ao gerar PDF:', err);
+        alert('Erro ao gerar o PDF. Tente novamente.');
+      } finally {
+        btn.textContent = '📄 Salvar em PDF';
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

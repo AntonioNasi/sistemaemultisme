@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#39a6de" />
+  <meta name="description" content="Sistema E-Multi SME - Registro de atividades da equipe multiprofissional" />
+  <title>Sistema E-Multi SME</title>
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" href="assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
+
+  <!-- Fonte -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="login-body">
+
+  <div class="login-wrapper">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="login-logo-placeholder">
+          <img src="assets/icons/icon-512.png" alt="Logo E-Multi" id="loginLogo"
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+          <div class="logo-fallback">
+            <span>E-Multi</span>
+            <small>SME Capistrano</small>
+          </div>
+        </div>
+        <h1>Sistema E-Multi SME</h1>
+        <p>Secretaria Municipal de Educação de Capistrano-CE</p>
+      </div>
+
+      <form id="loginForm" class="login-form" autocomplete="on">
+        <div class="form-group">
+          <label for="email">E-mail</label>
+          <input type="email" id="email" name="email" required
+                 placeholder="seu.email@exemplo.com" autocomplete="email" />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Senha</label>
+          <div class="input-password-wrapper">
+            <input type="password" id="password" name="password" required
+                   placeholder="••••••••" autocomplete="current-password" />
+            <button type="button" class="toggle-password" id="togglePassword"
+                    aria-label="Mostrar/ocultar senha">👁</button>
+          </div>
+        </div>
+
+        <div class="form-error" id="loginError" role="alert"></div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="loginBtn">
+          Entrar
+        </button>
+
+        <button type="button" class="link-forgot" id="forgotPassword">
+          Esqueci minha senha
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <small>© <span id="year"></span> SME Capistrano-CE · Sistema E-Multi</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').catch((err) =>
+                console.warn('SW não registrado:', err)
+            );
+            });
+        }
+    </script>
+</body>
+</html>

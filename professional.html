@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#39a6de" />
+  <title>Início - E-Multi SME</title>
+  <link rel="manifest" href="manifest.json" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="header-brand">
+      <img src="assets/icons/icon-192.png" alt="Ícone" class="header-logo" onerror="this.style.display='none'" style="border-radius: 8px;" />
+      <span>E-Multi SME</span>
+    </div>
+    <button id="btnLogout" class="btn btn-outline btn-sm">Sair</button>
+  </header>
+
+  <main class="app-main professional-home">
+    
+    <!-- Perfil do Profissional -->
+    <section class="profile-card">
+      <div class="profile-photo-wrapper">
+        <img id="profPhoto" src="" alt="Foto" class="profile-photo" style="display:none;" />
+        <div id="profPhotoPlaceholder" class="profile-photo-placeholder">?</div>
+      </div>
+      <div class="profile-info">
+        <h2 id="profName">Carregando...</h2>
+        <span id="profRole" class="profile-badge">...</span>
+      </div>
+    </section>
+
+    <!-- Botões de Ação Principal -->
+    <section class="action-grid">
+      <a href="demand-new.html" class="action-card">
+        <div class="action-icon icon-new">➕</div>
+        <h3>Nova Demanda</h3>
+        <p>Abrir um novo caso para acompanhamento</p>
+      </a>
+
+      <a href="demand-history.html" class="action-card">
+        <div class="action-icon icon-history">📂</div>
+        <h3>Histórico de Demandas</h3>
+        <p>Consultar casos já concluídos</p>
+      </a>
+    </section>
+
+        <!-- Seção de Relatórios Mensais -->
+    <section class="monthly-report-section" style="background: #fff; padding: 20px; border-radius: var(--radius); box-shadow: var(--sombra); margin-bottom: 24px;">
+      <h3 style="font-size: 1.1rem; margin-bottom: 12px; color: var(--texto);">Relatórios Mensais</h3>
+      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <a href="#" id="btnCurrentMonth" class="btn btn-primary" style="flex: 1; min-width: 200px;">
+          Gerar Relatório de <span id="currentMonthName">...</span>
+        </a>
+        <select id="pastMonthsSelect" class="form-group" style="padding: 12px; border-radius: var(--radius-sm); border: 1.5px solid var(--borda); flex: 1; min-width: 150px;">
+          <option value="">Meses anteriores...</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Seção de Demandas Abertas -->
+    <section class="open-demands-section">
+      <div class="section-title">
+        <h3>Demandas em Aberto</h3>
+        <span id="openDemandsCount" class="badge-count">0</span>
+      </div>
+      
+      <div id="openDemandsList" class="demands-grid">
+        <p class="loading-text">Buscando demandas em andamento...</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+  <script src="js/firebase-config.js"></script>
+  <script>
+    const openDemandsList = document.getElementById('openDemandsList');
+    const openDemandsCount = document.getElementById('openDemandsCount');
+
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      try {
+        // 1. Carrega dados do perfil
+        const doc = await db.collection(COLLECTION_USERS).doc(user.uid).get();
+        if (!doc.exists || doc.data().role !== 'profissional') {
+          alert('Acesso negado.');
+          await auth.signOut();
+          window.location.href = 'index.html';
+          return;
+        }
+
+        const data = doc.data();
+        
+        document.getElementById('profName').textContent = data.nomeCompleto;
+        document.getElementById('profRole').textContent = data.cargo;
+
+        if (data.fotoUrl) {
+          const img = document.getElementById('profPhoto');
+          img.src = data.fotoUrl;
+          img.style.display = 'block';
+          document.getElementById('profPhotoPlaceholder').style.display = 'none';
+        } else {
+          document.getElementById('profPhotoPlaceholder').textContent = data.nomeCompleto.charAt(0);
+        }
+
+        // 2. Carrega as demandas ABERTAS deste profissional
+        loadOpenDemands(user.uid);
+
+      } catch (err) {
+        console.error('Erro ao carregar perfil:', err);
+        alert('Erro ao carregar seu perfil.');
+      }
+    });
+
+    async function loadOpenDemands(uid) {
+      try {
+        const snap = await db.collection('demandas')
+          .where('uidProfissional', '==', uid)
+          .where('status', '==', 'aberta')
+          .get();
+
+        if (snap.empty) {
+          openDemandsList.innerHTML = '<p class="empty-text">Você não tem demandas em aberto no momento.</p>';
+          openDemandsCount.textContent = '0';
+          return;
+        }
+
+        const demands = [];
+        snap.forEach(doc => demands.push({ id: doc.id, ...doc.data() }));
+        
+        // Ordena pela data de criação (mais recente primeiro)
+        demands.sort((a, b) => {
+          const dateA = a.criadoEm ? a.criadoEm.toMillis() : 0;
+          const dateB = b.criadoEm ? b.criadoEm.toMillis() : 0;
+          return dateB - dateA;
+        });
+
+        openDemandsCount.textContent = demands.length;
+        openDemandsList.innerHTML = '';
+
+        demands.forEach(d => {
+          const dateStr = d.criadoEm 
+            ? d.criadoEm.toDate().toLocaleDateString('pt-BR')
+            : 'Data indisponível';
+
+          const card = document.createElement('a');
+          card.href = `demand-view.html?id=${d.id}`;
+          card.className = 'demand-card';
+          card.innerHTML = `
+            <div class="demand-card-header">
+              <span class="demand-date">📅 Aberta em: ${dateStr}</span>
+              <span class="demand-badge">Em andamento</span>
+            </div>
+            <h4>${d.tema}</h4>
+            <p><strong>Escola:</strong> ${d.escola}</p>
+          `;
+          openDemandsList.appendChild(card);
+        });
+
+      } catch (err) {
+        console.error('Erro ao carregar demandas abertas:', err);
+        openDemandsList.innerHTML = '<p class="error-text">Erro ao carregar demandas.</p>';
+      }
+    }
+
+        // --- Lógica de Relatórios Mensais ---
+    const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    const today = new Date();
+    const currentMonthIdx = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    // Configura o botão do mês atual
+    document.getElementById('currentMonthName').textContent = monthNames[currentMonthIdx];
+    const btnCurrent = document.getElementById('btnCurrentMonth');
+    const currentUrl = `report-monthly.html?mes=${currentMonthIdx}&ano=${currentYear}`;
+    
+    // Só habilita o botão se não for o primeiro dia do mês (dá tempo de ter dados)
+    if (today.getDate() > 1) {
+      btnCurrent.href = currentUrl;
+    } else {
+      btnCurrent.href = "javascript:alert('Você ainda não tem atividades neste mês.');";
+      btnCurrent.style.opacity = "0.5";
+    }
+
+    // Popula o dropdown de meses anteriores
+    const pastSelect = document.getElementById('pastMonthsSelect');
+    for (let i = 1; i <= 12; i++) {
+      let m = currentMonthIdx - i;
+      let y = currentYear;
+      if (m < 0) { m += 12; y -= 1; }
+      
+      const opt = document.createElement('option');
+      opt.value = `report-monthly.html?mes=${m}&ano=${y}`;
+      opt.textContent = `${monthNames[m]} de ${y}`;
+      pastSelect.appendChild(opt);
+    }
+
+    // Redireciona ao selecionar um mês anterior
+    pastSelect.addEventListener('change', (e) => {
+      if (e.target.value) window.location.href = e.target.value;
+    });
+
+    document.getElementById('btnLogout').addEventListener('click', () => {
+      auth.signOut().then(() => window.location.href = 'index.html');
+    });
+  </script>
+</body>
+</html>

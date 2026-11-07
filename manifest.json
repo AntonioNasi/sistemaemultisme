@@ -1,0 +1,26 @@
+{
+  "name": "Sistema E-Multi SME",
+  "short_name": "E-Multi SME",
+  "description": "Sistema de registro de atividades da equipe multiprofissional da SME de Capistrano-CE",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#39a6de",
+  "theme_color": "#39a6de",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

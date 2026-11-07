@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#39a6de" />
+  <title>Relatórios Anteriores - E-Multi SME</title>
+  <link rel="manifest" href="manifest.json" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header class="app-header">
+    <a href="professional.html" class="btn btn-outline btn-sm">← Voltar</a>
+    <div class="header-brand">Relatórios</div>
+    <div style="width: 60px;"></div>
+  </header>
+
+  <main class="app-main">
+    <div id="historyList" class="history-list">
+      <p class="loading-text">Carregando relatórios...</p>
+    </div>
+  </main>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+  <script src="js/firebase-config.js"></script>
+  <script>
+    const historyList = document.getElementById('historyList');
+
+    auth.onAuthStateChanged(async (user) => {
+            try {
+        // Busca SEM orderBy para evitar erro de índice composto
+        const snap = await db.collection(COLLECTION_REPORTS)
+          .where('uidProfissional', '==', user.uid)
+          .get();
+
+        if (snap.empty) {
+          historyList.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-icon">📂</div>
+              <h3>Nenhum relatório ainda</h3>
+              <p>Você ainda não registrou nenhuma atividade.</p>
+              <a href="report-new.html" class="btn btn-primary" style="margin-top: 16px;">Criar meu primeiro relatório</a>
+            </div>
+          `;
+          return;
+        }
+
+        // Converte para array e ordena manualmente pela data
+        const reports = [];
+        snap.forEach(doc => reports.push({ id: doc.id, ...doc.data() }));
+        reports.sort((a, b) => {
+          const dateA = a.criadoEm ? a.criadoEm.toMillis() : 0;
+          const dateB = b.criadoEm ? b.criadoEm.toMillis() : 0;
+          return dateB - dateA; // Mais recente primeiro
+        });
+
+        historyList.innerHTML = '';
+        
+        reports.forEach(data => {
+          const dateStr = data.criadoEm 
+            ? data.criadoEm.toDate().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+            : 'Data indisponível';
+
+          const card = document.createElement('div');
+          card.className = 'history-card';
+          card.innerHTML = `
+            <div class="history-card-header">
+              <span class="history-date">📅 ${dateStr}</span>
+              <span class="history-badge">${data.tipoAtividade || 'Atividade'}</span>
+            </div>
+            <div class="history-card-body">
+              <h4>${data.escola || 'Escola não informada'}</h4>
+              <p>${data.descricao ? data.descricao.substring(0, 100) + '...' : 'Sem descrição'}</p>
+            </div>
+            <div class="history-card-footer">
+              <button class="btn btn-outline btn-sm" onclick="verRelatorio('${data.id}')">Ver / Imprimir</button>
+            </div>
+          `;
+          historyList.appendChild(card);
+        });
+
+      } catch (err) {
+        console.error('Erro ao buscar histórico:', err);
+        historyList.innerHTML = '<p class="error-text">Erro ao carregar o histórico.</p>';
+      }
+    });
+
+    // Função temporária para visualização (será refinada no Módulo 6 com PDF)
+    window.verRelatorio = (id) => {
+      window.location.href = `report-view.html?id=${id}`;
+    };
+  </script>
+</body>
+</html>

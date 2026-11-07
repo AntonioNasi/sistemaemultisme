@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#39a6de" />
+  <title>Detalhes da Demanda - E-Multi SME</title>
+  <link rel="manifest" href="manifest.json" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header class="app-header">
+    <a href="professional.html" class="btn btn-outline btn-sm">← Voltar</a>
+    <div class="header-brand">Detalhes da Demanda</div>
+    <div style="width: 60px;"></div>
+  </header>
+
+  <main class="app-main">
+    <!-- Cabeçalho do Caso -->
+    <section class="demand-header-card">
+      <div class="demand-title-row">
+        <h2 id="viewTema">Carregando...</h2>
+        <span id="viewStatusBadge" class="demand-badge">...</span>
+      </div>
+      <p class="demand-meta">
+        <strong>Escola:</strong> <span id="viewEscola">...</span> <br>
+        <strong>Aberta em:</strong> <span id="viewDataAbertura">...</span>
+      </p>
+    </section>
+
+    <!-- Botões de Ação (Desabilitados se concluída) -->
+    <section id="actionButtonsSection" class="demand-actions-grid">
+      <button class="action-card btn-action" onclick="openModalAnexo()">
+        <div class="action-icon icon-new">📎</div>
+        <h3>Anexar Documentos</h3>
+        <p id="countAnexos">0 anexos</p>
+      </button>
+
+      <button class="action-card btn-action" onclick="openModalRegistro()">
+        <div class="action-icon icon-history">📝</div>
+        <h3>Fazer um Registro</h3>
+        <p id="countRegistros">0 registros</p>
+      </button>
+    </section>
+
+    <!-- Botão do Relatório Final -->
+    <section id="finalReportSection" class="final-report-box">
+      <div class="alert-info">
+        <strong>Atenção:</strong> Inicie o relatório final apenas quando o caso estiver concluído. Ao salvar, a demanda será encerrada.
+      </div>
+      <button class="btn btn-success btn-block" id="btnOpenReport" onclick="openModalRelatorio()">
+        Fazer Relatório Final e Encerrar Demanda
+      </button>
+      <!-- Botão de visualizar PDF (Só aparece se concluída) -->
+      <a href="#" id="btnViewPdf" class="btn btn-primary btn-block" style="display: none; margin-top: 12px;">
+        📄 Visualizar / Imprimir Relatório Final
+      </a>
+    </section>
+
+    <!-- Área de Listagens (Timeline e Anexos) -->
+    <div class="demand-lists-container">
+      <!-- Timeline de Registros -->
+      <section class="list-section">
+        <h3>Linha do Tempo (Registros)</h3>
+        <div id="timelineList" class="timeline">
+          <p class="loading-text">Nenhum registro ainda.</p>
+        </div>
+      </section>
+
+      <!-- Lista de Anexos -->
+      <section class="list-section">
+        <h3>Anexos da Demanda</h3>
+        <div id="anexosList" class="anexos-list">
+          <p class="loading-text">Nenhum anexo enviado.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- MODAL: NOVO REGISTRO -->
+  <div id="modalRegistro" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Novo Registro</h3>
+        <button class="modal-close" onclick="closeModal('modalRegistro')">&times;</button>
+      </div>
+      <form id="formRegistro" class="modal-form">
+        <div class="form-group">
+          <label>Data do Registro *</label>
+          <input type="date" id="rData" required />
+        </div>
+        <div class="form-group">
+          <label>O que foi feito? *</label>
+          <textarea id="rTexto" rows="4" required placeholder="Ex: Realizei reunião com a coordenação..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modalRegistro')">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveRegistro">Salvar Registro</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: NOVO ANEXO -->
+  <div id="modalAnexo" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Anexar Documento</h3>
+        <button class="modal-close" onclick="closeModal('modalAnexo')">&times;</button>
+      </div>
+      <form id="formAnexo" class="modal-form">
+        <div class="form-group">
+          <label>Arquivo (PDF, Imagem, Word) *</label>
+          <input type="file" id="aFile" required accept=".pdf,image/*,.doc,.docx" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modalAnexo')">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveAnexo">Enviar Arquivo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: RELATÓRIO FINAL -->
+  <div id="modalRelatorio" class="modal-overlay">
+    <div class="modal-card" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3>Relatório Final</h3>
+        <button class="modal-close" onclick="closeModal('modalRelatorio')">&times;</button>
+      </div>
+      <form id="formRelatorio" class="modal-form">
+        <p style="font-size: 0.85rem; color: var(--erro); margin-bottom: 16px; font-weight: 600;">
+          ⚠️ Ao salvar este relatório, a demanda será marcada como CONCLUÍDA e não permitirá novos registros.
+        </p>
+        <div class="form-group">
+          <label>Tipo de Atividade Principal *</label>
+          <select id="relTipoAtividade" required>
+            <!-- Preenchido via JS -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Descrição Detalhada / Síntese *</label>
+          <textarea id="relDescricao" rows="4" required placeholder="Resumo das ações, resultados obtidos..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Encaminhamentos *</label>
+          <textarea id="relEncaminhamentos" rows="3" required placeholder="Quais os próximos passos ou orientações?"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modalRelatorio')">Cancelar</button>
+          <button type="submit" class="btn btn-success" id="btnSaveRelatorio">Salvar e Encerrar Demanda</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+  <script src="js/firebase-config.js"></script>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const demandId = urlParams.get('id');
+    let currentDemand = null;
+    let currentUser = null;
+
+    if (!demandId) window.location.href = 'professional.html';
+
+    // Inicializa dropdown de atividades no modal de relatório
+    const selectTipo = document.getElementById('relTipoAtividade');
+    TIPOS_ATIVIDADE.forEach(tipo => {
+      const opt = document.createElement('option');
+      opt.value = tipo;
+      opt.textContent = tipo;
+      selectTipo.appendChild(opt);
+    });
+
+    // Formata data
+    const formatDate = (timestamp) => {
+      if (!timestamp) return '...';
+      return timestamp.toDate().toLocaleDateString('pt-BR') + ' às ' + timestamp.toDate().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+    };
+    const formatDateShort = (dateString) => {
+      if (!dateString) return '';
+      // Se vier do input type="date", já está YYYY-MM-DD
+      const parts = dateString.split('-');
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    };
+
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      currentUser = user;
+      loadDemand();
+    });
+
+    async function loadDemand() {
+      try {
+        const doc = await db.collection('demandas').doc(demandId).get();
+        if (!doc.exists) throw new Error('Demanda não encontrada.');
+        
+        currentDemand = { id: doc.id, ...doc.data() };
+        
+        if (currentDemand.uidProfissional !== currentUser.uid) {
+          alert('Você não tem permissão para acessar esta demanda.');
+          window.location.href = 'professional.html';
+          return;
+        }
+
+        renderDemandUI();
+
+      } catch (err) {
+        console.error("ERRO REAL:", err);
+        alert('ERRO REAL NO BANCO: ' + err.message); // <-- ADICIONADO PARA DEBUG
+        // window.location.href = 'professional.html'; (Deixe comentado por enquanto)
+      }
+    }
+
+    function renderDemandUI() {
+      // Cabeçalho
+      document.getElementById('viewTema').textContent = currentDemand.tema;
+      document.getElementById('viewEscola').textContent = currentDemand.escola;
+      document.getElementById('viewDataAbertura').textContent = formatDate(currentDemand.criadoEm);
+      
+      const badge = document.getElementById('viewStatusBadge');
+      
+      if (currentDemand.status === 'concluida') {
+        badge.textContent = 'CONCLUÍDA';
+        badge.style.background = '#eaf5fc';
+        badge.style.color = 'var(--azul)';
+        
+        // Esconde botões de adicionar e mostra botão de PDF
+        document.getElementById('actionButtonsSection').style.display = 'none';
+        document.getElementById('btnOpenReport').style.display = 'none';
+        const btnPdf = document.getElementById('btnViewPdf');
+        btnPdf.style.display = 'block';
+        btnPdf.href = `demand-print.html?id=${demandId}`; // Página do PDF (próxima parte)
+      } else {
+        badge.textContent = 'EM ANDAMENTO';
+        badge.style.background = '#fff3e0';
+        badge.style.color = 'var(--laranja)';
+      }
+
+      // Contadores
+      const anexos = currentDemand.anexos || [];
+      const registros = currentDemand.registros || [];
+      document.getElementById('countAnexos').textContent = `${anexos.length} anexos`;
+      document.getElementById('countRegistros').textContent = `${registros.length} registros`;
+
+      // Renderiza Timeline
+      const timeline = document.getElementById('timelineList');
+      if (registros.length === 0) {
+        timeline.innerHTML = '<p class="empty-text">Nenhum registro ainda.</p>';
+      } else {
+        registros.sort((a,b) => new Date(b.data) - new Date(a.data)); // Mais recente no topo
+        timeline.innerHTML = '';
+        registros.forEach(r => {
+          const el = document.createElement('div');
+          el.className = 'timeline-item';
+          el.innerHTML = `
+            <div class="timeline-date">📅 ${formatDateShort(r.data.split('T')[0])}</div>
+            <div class="timeline-text">${r.texto}</div>
+          `;
+          timeline.appendChild(el);
+        });
+      }
+
+      // Renderiza Anexos
+      const listAnexos = document.getElementById('anexosList');
+      if (anexos.length === 0) {
+        listAnexos.innerHTML = '<p class="empty-text">Nenhum anexo enviado.</p>';
+      } else {
+        listAnexos.innerHTML = '';
+        anexos.forEach(a => {
+          const el = document.createElement('div');
+          el.className = 'anexo-item';
+          el.innerHTML = `
+            <span>📎 ${a.nome}</span>
+            <a href="${a.url}" target="_blank" class="btn btn-outline btn-sm">Abrir</a>
+          `;
+          listAnexos.appendChild(el);
+        });
+      }
+    }
+
+    // --- LÓGICA DE REGISTROS ---
+    document.getElementById('formRegistro').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btnSaveRegistro');
+      btn.disabled = true;
+      btn.textContent = 'Salvando...';
+
+      const dataInput = document.getElementById('rData').value;
+      const texto = document.getElementById('rTexto').value.trim();
+
+      const novoRegistro = {
+        id: 'reg_' + Date.now(),
+        data: dataInput, // Salva a data escolhida pelo usuário
+        texto: texto
+      };
+
+      try {
+        const novosRegistros = [...(currentDemand.registros || []), novoRegistro];
+        await db.collection('demandas').doc(demandId).update({
+          registros: novosRegistros,
+          atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        currentDemand.registros = novosRegistros;
+        closeModal('modalRegistro');
+        document.getElementById('formRegistro').reset();
+        renderDemandUI();
+      } catch (err) {
+        alert('Erro ao salvar registro: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Salvar Registro';
+      }
+    });
+
+        // --- LÓGICA DE ANEXOS ---
+    document.getElementById('formAnexo').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btnSaveAnexo');
+      const file = document.getElementById('aFile').files[0];
+      
+      if (!file) return;
+      
+      btn.disabled = true;
+      btn.textContent = 'Enviando...';
+
+      try {
+        // Cria uma referência no Storage
+        const storageRef = storage.ref(`demandas/${demandId}/${Date.now()}_${file.name}`);
+        
+        // Faz o upload
+        const snapshot = await storageRef.put(file);
+        const url = await snapshot.ref.getDownloadURL();
+
+        const novoAnexo = {
+          id: 'anx_' + Date.now(),
+          nome: file.name,
+          url: url,
+          data: new Date().toISOString()
+        };
+
+        // Atualiza o Firestore
+        const novosAnexos = [...(currentDemand.anexos || []), novoAnexo];
+        await db.collection('demandas').doc(demandId).update({
+          anexos: novosAnexos,
+          atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // Atualiza a tela
+        currentDemand.anexos = novosAnexos;
+        closeModal('modalAnexo');
+        document.getElementById('formAnexo').reset();
+        renderDemandUI();
+        alert('Anexo enviado com sucesso!');
+        
+      } catch (err) {
+        console.error("Erro no upload:", err);
+        // Mostra o erro real para sabermos o que é
+        alert('Erro ao enviar anexo: ' + err.message);
+      } finally {
+        // Destrava o botão, aconteça o que acontecer
+        btn.disabled = false;
+        btn.textContent = 'Enviar Arquivo';
+      }
+    });
+
+    // --- LÓGICA DE RELATÓRIO FINAL ---
+    document.getElementById('formRelatorio').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!confirm('Tem certeza que deseja encerrar esta demanda? Novos registros não poderão ser adicionados.')) return;
+      
+      const btn = document.getElementById('btnSaveRelatorio');
+      btn.disabled = true;
+      btn.textContent = 'Salvando...';
+
+      try {
+        await db.collection('demandas').doc(demandId).update({
+          status: 'concluida',
+          tipoAtividadeFinal: document.getElementById('relTipoAtividade').value,
+          relatorioDescricao: document.getElementById('relDescricao').value.trim(),
+          relatorioEncaminhamentos: document.getElementById('relEncaminhamentos').value.trim(),
+          concluidoEm: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        alert('Demanda encerrada com sucesso!');
+        window.location.reload(); // Recarrega a página para atualizar o status visual
+      } catch (err) {
+        alert('Erro ao encerrar demanda: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Salvar e Encerrar Demanda';
+      }
+    });
+
+    // --- CONTROLE DE MODAIS ---
+    window.openModalRegistro = () => {
+      document.getElementById('rData').value = new Date().toISOString().split('T')[0]; // Data de hoje
+      document.getElementById('modalRegistro').classList.add('visible');
+    };
+    window.openModalAnexo = () => {
+      document.getElementById('modalAnexo').classList.add('visible');
+    };
+    window.openModalRelatorio = () => {
+      document.getElementById('modalRelatorio').classList.add('visible');
+    };
+    window.closeModal = (id) => {
+      document.getElementById(id).classList.remove('visible');
+    };
+  </script>
+</body>
+</html>
