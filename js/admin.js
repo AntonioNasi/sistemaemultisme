@@ -195,6 +195,7 @@ function renderUsers() {
       </div>
 
       <div class="user-card-actions">
+        <button class="btn btn-sm btn-primary" onclick="openEditUser('${u.id}')">Editar</button>
         <button class="btn btn-sm ${u.ativo === false ? 'btn-success' : 'btn-warning'}" 
                 onclick="toggleUserStatus('${u.id}', ${u.ativo !== false})">
           ${u.ativo === false ? 'Ativar' : 'Desativar'}
@@ -501,5 +502,76 @@ document.getElementById('btnReportGeral').addEventListener('click', async () => 
   } finally {
     btn.textContent = '📊 Relatório Geral (PDF)';
     btn.disabled = false;
+  }
+});
+
+/* ------------------------------------------------------------
+ * MODAL EDITAR USUÁRIO
+ * ---------------------------------------------------------- */
+window.openEditUser = (uid) => {
+  const user = allUsers.find(u => u.id === uid);
+  if (!user) return;
+
+  document.getElementById('editUid').value = user.id;
+  document.getElementById('editName').value = user.nomeCompleto;
+  document.getElementById('editRole').value = user.cargo;
+  document.getElementById('editPhoto').value = ''; // Limpa o input de arquivo
+  document.getElementById('modalEditError').classList.remove('visible');
+
+  // Preview da foto
+  const preview = document.getElementById('editPhotoPreview');
+  const status = document.getElementById('editPhotoStatus');
+  
+  if (user.fotoUrl) {
+    preview.src = user.fotoUrl;
+    preview.style.display = 'block';
+    status.textContent = 'Foto atual carregada.';
+  } else {
+    preview.style.display = 'none';
+    status.textContent = 'Nenhuma foto cadastrada.';
+  }
+
+  document.getElementById('modalEditUser').classList.add('visible');
+};
+
+document.getElementById('formEditUser').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('btnSaveEditUser');
+  const errorDiv = document.getElementById('modalEditError');
+  
+  const uid = document.getElementById('editUid').value;
+  const name = document.getElementById('editName').value.trim();
+  const role = document.getElementById('editRole').value;
+  const photoFile = document.getElementById('editPhoto').files[0];
+
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  errorDiv.classList.remove('visible');
+
+  try {
+    let updateData = { nomeCompleto: name, cargo: role };
+
+    // Se o admin selecionou uma nova foto, faz o upload
+    if (photoFile) {
+      const storageRef = storage.ref(`fotos/${uid}_3x4.jpg`);
+      const snapshot = await storageRef.put(photoFile);
+      const fotoUrl = await snapshot.ref.getDownloadURL();
+      updateData.fotoUrl = fotoUrl;
+    }
+
+    // Atualiza no Firestore
+    await db.collection(COLLECTION_USERS).doc(uid).update(updateData);
+    
+    document.getElementById('modalEditUser').classList.remove('visible');
+    alert('Profissional atualizado com sucesso!');
+    loadUsers(); // Recarrega a lista
+
+  } catch (err) {
+    console.error('Erro ao editar:', err);
+    errorDiv.textContent = 'Erro ao salvar alterações: ' + err.message;
+    errorDiv.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Salvar Alterações';
   }
 });
