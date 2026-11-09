@@ -126,6 +126,52 @@
     </div>
   </div>
 
+    <!-- MODAL: EDITAR PROFISSIONAL -->
+  <div id="modalEditUser" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Editar Profissional</h3>
+        <button class="modal-close" onclick="document.getElementById('modalEditUser').classList.remove('visible')">&times;</button>
+      </div>
+      <form id="formEditUser" class="modal-form">
+        <input type="hidden" id="editUid" />
+        
+        <div class="form-group">
+          <label>Nome Completo *</label>
+          <input type="text" id="editName" required />
+        </div>
+        
+        <div class="form-group">
+          <label>Cargo / Função *</label>
+          <select id="editRole" required>
+            <option value="Pedagogo(a)">Pedagogo(a)</option>
+            <option value="Psicólogo(a)">Psicólogo(a)</option>
+            <option value="Nutricionista">Nutricionista</option>
+            <option value="Assistente Social">Assistente Social</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Foto 3x4</label>
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+            <img id="editPhotoPreview" src="" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--azul); display: none;" />
+            <small id="editPhotoStatus" style="color: var(--texto-suave);">Nenhuma foto atual</small>
+          </div>
+          <input type="file" id="editPhoto" accept="image/*" />
+          <small style="display:block; margin-top:4px; color: var(--texto-suave);">Deixe em branco para manter a foto atual.</small>
+        </div>
+
+        <div class="form-error" id="modalEditError"></div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" onclick="document.getElementById('modalEditUser').classList.remove('visible')">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveEditUser">Salvar Alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
