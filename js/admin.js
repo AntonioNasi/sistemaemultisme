@@ -56,6 +56,7 @@ tabs.forEach(tab => {
     
     tab.classList.add('active');
     document.getElementById(tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'tabTriagem') loadTriagem();
   });
 });
 
@@ -245,21 +246,31 @@ document.getElementById('formNewUser').addEventListener('submit', async (e) => {
   btnSave.textContent = 'Salvando...';
   errorDiv.classList.remove('visible');
 
-  let secondaryApp = null;
-  let newUid = null;
+  // Define o tipo de usuário baseado no cargo
+  const isEscola = role.includes('Diretor') || role.includes('Coordenador');
+  const userRole = isEscola ? 'escola' : 'profissional';
 
   try {
-    // 1. Inicializa uma segunda instância do Firebase
-    // Isso evita que o admin logado na instância principal seja deslogado
-    const secondaryAppName = 'secondary-' + Date.now();
-    secondaryApp = firebase.initializeApp(firebaseConfig, secondaryAppName);
-    const secondaryAuth = secondaryApp.auth();
+    // 1. Cria o usuário via API REST (Não desloga o Admin)
+    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email,
+        password: password,
+        returnSecureToken: true
+      })
+    });
 
-    // 2. Cria o usuário na instância secundária
-    const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, password);
-    newUid = userCredential.user.uid;
+    const data = await response.json();
 
-    // 3. Upload Foto (se houver) - usa o storage da instância principal (admin logado)
+    if (!response.ok) {
+      throw new Error(data.error.message);
+    }
+
+    const newUid = data.localId;
+
+    // 2. Upload Foto (se houver)
     let fotoUrl = "";
     if (photoFile) {
       const storageRef = storage.ref(`fotos/${newUid}_3x4.jpg`);
@@ -267,14 +278,16 @@ document.getElementById('formNewUser').addEventListener('submit', async (e) => {
       fotoUrl = await snapshot.ref.getDownloadURL();
     }
 
-    // 4. Salva no Firestore usando a instância principal (admin ainda logado)
-    const campos = currentFieldsConfig.length > 0 ? currentFieldsConfig : CAMPOS_PADRAO;
+    // 3. Salva no Firestore
+    const campos = userRole === 'profissional' 
+      ? (currentFieldsConfig.length > 0 ? currentFieldsConfig : CAMPOS_PADRAO)
+      : []; // Escolas não precisam de campos de relatório
 
     await db.collection(COLLECTION_USERS).doc(newUid).set({
       nomeCompleto: name,
       cargo: role,
       email: email,
-      role: 'profissional',
+      role: userRole, // <-- Aqui usa a variável que estava dando erro
       ativo: true,
       fotoUrl: fotoUrl,
       camposRelatorio: campos,
@@ -282,30 +295,19 @@ document.getElementById('formNewUser').addEventListener('submit', async (e) => {
     });
 
     modalUser.classList.remove('visible');
-    alert('Profissional cadastrado com sucesso!');
+    alert('Usuário cadastrado com sucesso!');
     loadUsers();
 
   } catch (err) {
     console.error('Erro ao cadastrar:', err);
-    const mensagens = {
-      'auth/email-already-in-use': 'Este e-mail já está em uso.',
-      'auth/invalid-email': 'E-mail inválido.',
-      'auth/weak-password': 'A senha é muito fraca.',
-      'storage/unauthorized': 'Sem permissão no Storage. Verifique as regras.'
-    };
-    errorDiv.textContent = mensagens[err.code] || err.message;
+    let msg = err.message;
+    if (msg.includes('EMAIL_EXISTS')) msg = 'Este e-mail já está em uso.';
+    if (msg.includes('WEAK_PASSWORD')) msg = 'A senha deve ter no mínimo 6 caracteres.';
+    if (msg.includes('INVALID_EMAIL')) msg = 'E-mail inválido.';
+    
+    errorDiv.textContent = msg;
     errorDiv.classList.add('visible');
   } finally {
-    // 5. Limpa a instância secundária (desloga o usuário criado nela)
-    if (secondaryApp) {
-      try {
-        await secondaryApp.auth().signOut();
-        await secondaryApp.delete();
-      } catch (cleanupErr) {
-        console.warn('Erro ao limpar instância secundária:', cleanupErr);
-      }
-    }
-    
     btnSave.disabled = false;
     btnSave.textContent = 'Cadastrar';
   }
@@ -548,10 +550,17 @@ document.getElementById('formEditUser').addEventListener('submit', async (e) => 
   btn.textContent = 'Salvando...';
   errorDiv.classList.remove('visible');
 
-  try {
-    let updateData = { nomeCompleto: name, cargo: role };
+  // Define a role baseada no cargo
+  const isEscola = role.includes('Diretor') || role.includes('Coordenador');
+  const userRole = isEscola ? 'escola' : 'profissional';
 
-    // Se o admin selecionou uma nova foto, faz o upload
+  try {
+    let updateData = { 
+      nomeCompleto: name, 
+      cargo: role,
+      role: userRole // <-- Atualiza a role também
+    };
+
     if (photoFile) {
       const storageRef = storage.ref(`fotos/${uid}_3x4.jpg`);
       const snapshot = await storageRef.put(photoFile);
@@ -559,12 +568,11 @@ document.getElementById('formEditUser').addEventListener('submit', async (e) => 
       updateData.fotoUrl = fotoUrl;
     }
 
-    // Atualiza no Firestore
     await db.collection(COLLECTION_USERS).doc(uid).update(updateData);
     
     document.getElementById('modalEditUser').classList.remove('visible');
     alert('Profissional atualizado com sucesso!');
-    loadUsers(); // Recarrega a lista
+    loadUsers();
 
   } catch (err) {
     console.error('Erro ao editar:', err);
@@ -575,3 +583,84 @@ document.getElementById('formEditUser').addEventListener('submit', async (e) => 
     btn.textContent = 'Salvar Alterações';
   }
 });
+
+
+
+/* ------------------------------------------------------------
+ * ABA 3: TRIAGEM DE DEMANDAS
+ * ---------------------------------------------------------- */
+async function loadTriagem() {
+  const list = document.getElementById('triagemList');
+  list.innerHTML = '<p class="loading-text">Buscando demandas pendentes...</p>';
+  
+  try {
+    const snap = await db.collection('demandas').where('status', '==', 'pendente').get();
+    
+    if (snap.empty) {
+      list.innerHTML = '<p class="empty-text">Nenhuma demanda aguardando triagem.</p>';
+      return;
+    }
+
+    const demands = [];
+    snap.forEach(doc => demands.push({ id: doc.id, ...doc.data() }));
+    demands.sort((a, b) => b.criadoEm.toMillis() - a.criadoEm.toMillis());
+
+    list.innerHTML = '';
+    demands.forEach(d => {
+      const card = document.createElement('div');
+      card.className = 'history-card';
+      card.innerHTML = `
+        <div class="history-card-header">
+          <span class="history-date">📅 ${d.criadoEm.toDate().toLocaleDateString('pt-BR')}</span>
+          <span class="history-badge" style="background:#f7d210; color:#333;">Pendente</span>
+        </div>
+        <div class="history-card-body">
+          <h4>${d.tema}</h4>
+          <p><strong>Escola:</strong> ${d.nomeEscola}</p>
+          <p style="margin-top: 8px; background:#f7f9fb; padding: 10px; border-radius: 6px; font-size: 0.85rem;">
+            ${d.detalhesIniciais}
+          </p>
+        </div>
+        <div class="history-card-footer" style="display: flex; gap: 8px; justify-content: flex-start; margin-top: 16px;">
+          <select id="selProf_${d.id}" class="form-group" style="padding: 8px; border-radius: 6px; border: 1px solid #ccc; flex: 1;">
+            <option value="">Selecione o profissional...</option>
+            ${allUsers.filter(u => u.role === 'profissional').map(u => `<option value="${u.id}">${u.nomeCompleto} (${u.cargo})</option>`).join('')}
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="encaminharDemanda('${d.id}')">Encaminhar</button>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+  } catch (err) {
+    console.error(err);
+    list.innerHTML = '<p class="error-text">Erro ao carregar triagem.</p>';
+  }
+}
+
+// Ação de encaminhar
+window.encaminharDemanda = async (demandId) => {
+  const select = document.getElementById(`selProf_${demandId}`);
+  const profId = select.value;
+
+  if (!profId) return alert('Selecione um profissional primeiro.');
+
+  const prof = allUsers.find(u => u.id === profId);
+
+  try {
+    await db.collection('demandas').doc(demandId).update({
+      uidProfissional: profId,
+      nomeProfissional: prof.nomeCompleto,
+      status: 'aberta', // Muda de pendente para aberta
+      atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    alert('Demanda encaminhada com sucesso!');
+    loadTriagem(); // Recarrega a lista
+  } catch (err) {
+    alert('Erro ao encaminhar: ' + err.message);
+  }
+};
+
+// Modifique o evento das abas no início do admin.js para carregar a triagem
+// Encontre o trecho: tabs.forEach(tab => { ... })
+// E adicione dentro dele:
+// if (tab.dataset.tab === 'tabTriagem') loadTriagem();

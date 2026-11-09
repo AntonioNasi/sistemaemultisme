@@ -7,7 +7,7 @@
   <meta name="description" content="Sistema E-Multi SME - Registro de atividades da equipe multiprofissional" />
   <title>Sistema E-Multi SME</title>
 
-  <link rel="manifest" href="./manifest.json" />
+  <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" href="assets/icons/icon-192.png" />
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
 
@@ -84,15 +84,10 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-              navigator.serviceWorker.register('./sw.js')
-                .then((registration) => {
-                  console.log('Service Worker registrado com sucesso:', registration.scope);
-                })
-                .catch((err) => {
-                  console.warn('Falha ao registrar o Service Worker:', err);
-                });
+            navigator.serviceWorker.register('sw.js').catch((err) =>
+                console.warn('SW não registrado:', err)
+            );
             });
-          }
         }
     </script>
 </body>

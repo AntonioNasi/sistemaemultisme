@@ -30,6 +30,12 @@
       </p>
     </section>
 
+    <!-- NOVO: Solicitação da Escola -->
+    <section id="schoolRequestSection" class="demand-header-card" style="display: none; border-left: 5px solid var(--amarelo); background: #fffdf5;">
+      <h3 style="font-size: 1.1rem; margin-bottom: 8px;">Solicitação da Escola:</h3>
+      <p id="viewSchoolRequest" style="font-size: 0.95rem; color: #333; white-space: pre-wrap; line-height: 1.5;"></p>
+    </section>
+
     <!-- Botões de Ação (Desabilitados se concluída) -->
     <section id="actionButtonsSection" class="demand-actions-grid">
       <button class="action-card btn-action" onclick="openModalAnexo()">
@@ -253,6 +259,11 @@
       const registros = currentDemand.registros || [];
       document.getElementById('countAnexos').textContent = `${anexos.length} anexos`;
       document.getElementById('countRegistros').textContent = `${registros.length} registros`;
+
+      if (currentDemand.detalhesIniciais) {
+        document.getElementById('schoolRequestSection').style.display = 'block';
+        document.getElementById('viewSchoolRequest').textContent = currentDemand.detalhesIniciais;
+      }
 
       // Renderiza Timeline
       const timeline = document.getElementById('timelineList');

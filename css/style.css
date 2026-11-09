@@ -1082,3 +1082,10 @@ body {
   font-weight: 600;
   margin-top: 4px;
 }
+
+.user-card-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap; /* Para não quebrar em telas pequenas */
+}

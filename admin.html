@@ -30,7 +30,18 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="tabUsers">Profissionais</button>
       <button class="tab-btn" data-tab="tabFields">Configurar Relatório</button>
+      <button class="tab-btn" data-tab="tabTriagem">Triagem de Demandas</button>
     </div>
+
+    <!-- ABA 3: TRIAGEM DE DEMANDAS -->
+    <section id="tabTriagem" class="tab-content">
+      <div class="section-header">
+        <h2>Demandas Aguardando Triagem</h2>
+      </div>
+      <div id="triagemList" class="history-list">
+        <p class="loading-text">Carregando...</p>
+      </div>
+    </section>
 
     <!-- ABA 1: PROFISSIONAIS -->
     <section id="tabUsers" class="tab-content active">
@@ -97,6 +108,8 @@
             <option value="Psicólogo(a)">Psicólogo(a)</option>
             <option value="Nutricionista">Nutricionista</option>
             <option value="Assistente Social">Assistente Social</option>
+            <option value="Diretor(a)">Diretor(a) de Escola</option>
+            <option value="Coordenador(a)">Coordenador(a) de Escola</option>
             <option value="Outro">Outro</option>
           </select>
         </div>
@@ -148,7 +161,8 @@
             <option value="Psicólogo(a)">Psicólogo(a)</option>
             <option value="Nutricionista">Nutricionista</option>
             <option value="Assistente Social">Assistente Social</option>
-            <option value="Outro">Outro</option>
+            <option value="Diretor(a)">Diretor(a) de Escola</option>
+            <option value="Coordenador(a)">Coordenador(a) de Escola</option>
           </select>
         </div>
 

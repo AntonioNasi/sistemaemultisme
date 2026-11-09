@@ -57,6 +57,8 @@ async function redirectByRole(user) {
       window.location.href = 'admin.html';
     } else if (data.role === 'profissional') {
       window.location.href = 'professional.html';
+    } else if (data.role === 'escola') { // <-- NOVA CONDIÇÃO
+      window.location.href = 'school.html';
     } else {
       showError('Perfil de usuário inválido.');
       await auth.signOut();

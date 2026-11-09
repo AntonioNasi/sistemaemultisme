@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#5abe64" />
+  <title>Nova Solicitação - E-Multi SME</title>
+  <link rel="manifest" href="manifest.json" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header class="app-header">
+    <a href="school.html" class="btn btn-outline btn-sm">← Voltar</a>
+    <div class="header-brand">Nova Solicitação</div>
+    <div style="width: 60px;"></div>
+  </header>
+
+  <main class="app-main">
+    <form id="formDemandSchool" class="report-form">
+      <p class="help-text" style="margin-bottom: 20px;">
+        Descreva a situação abaixo. A Secretaria de Educação fará a triagem e encaminhará para o profissional responsável.
+      </p>
+
+      <div class="form-group">
+        <label for="dsTema">Motivo / Título do Caso *</label>
+        <input type="text" id="dsTema" required placeholder="Ex: Infrequência escolar - Aluno João" />
+      </div>
+
+      <div class="form-group">
+        <label for="dsDetalhes">Detalhamento da Solicitação *</label>
+        <textarea id="dsDetalhes" rows="4" required placeholder="Descreva o que está acontecendo e o que precisa ser feito..."></textarea>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-success btn-block" id="btnSubmitSchoolDemand">
+          Enviar para a SME
+        </button>
+      </div>
+    </form>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+  <script src="js/firebase-config.js"></script>
+  <script>
+    let currentUserProfile = null;
+    const form = document.getElementById('formDemandSchool');
+    const btnSubmit = document.getElementById('btnSubmitSchoolDemand');
+
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      const doc = await db.collection(COLLECTION_USERS).doc(user.uid).get();
+      if (doc.exists) {
+        currentUserProfile = { uid: user.uid, ...doc.data() };
+      } else {
+        window.location.href = 'school.html';
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const tema = document.getElementById('dsTema').value.trim();
+      const detalhes = document.getElementById('dsDetalhes').value.trim();
+
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = 'Enviando...';
+
+      try {
+        const novaDemanda = {
+          uidEscola: currentUserProfile.uid,
+          nomeEscola: currentUserProfile.nomeCompleto,
+          
+          uidProfissional: null, // Será preenchido pelo Admin
+          nomeProfissional: null,
+          
+          tema: tema,
+          escola: currentUserProfile.nomeCompleto,
+          status: 'pendente', // Status inicial para triagem
+          
+          detalhesIniciais: detalhes, // Texto da escola
+          
+          registros: [],
+          anexos: [],
+          
+          criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+          atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection('demandas').add(novaDemanda);
+        
+        alert('Solicitação enviada com sucesso! A SME fará a triagem.');
+        window.location.href = 'demand-history-school.html';
+
+      } catch (err) {
+        console.error('Erro ao enviar demanda:', err);
+        alert('Erro ao enviar: ' + err.message);
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = 'Enviar para a SME';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#5abe64" />
+  <title>Painel da Escola - E-Multi SME</title>
+  <link rel="manifest" href="manifest.json" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="header-brand">
+      <img src="assets/icons/icon-192.png" alt="Ícone" class="header-logo" onerror="this.style.display='none'" style="border-radius: 8px;" />
+      <span>E-Multi SME (Escola)</span>
+    </div>
+    <button id="btnLogout" class="btn btn-outline btn-sm">Sair</button>
+  </header>
+
+  <main class="app-main professional-home">
+    
+    <!-- Perfil da Escola -->
+    <section class="profile-card">
+      <div class="profile-photo-wrapper">
+        <img id="profPhoto" src="" alt="Foto" class="profile-photo" style="display:none;" />
+        <div id="profPhotoPlaceholder" class="profile-photo-placeholder">?</div>
+      </div>
+      <div class="profile-info">
+        <h2 id="profName">Carregando...</h2>
+        <span id="profRole" class="profile-badge">...</span>
+      </div>
+    </section>
+
+    <!-- Botões de Ação -->
+    <section class="action-grid">
+      <a href="demand-new-school.html" class="action-card">
+        <div class="action-icon icon-new">➕</div>
+        <h3>Nova Solicitação</h3>
+        <p>Abrir um novo pedido de atendimento</p>
+      </a>
+
+      <a href="demand-history-school.html" class="action-card">
+        <div class="action-icon icon-history">📂</div>
+        <h3>Minhas Solicitações</h3>
+        <p>Acompanhar o status dos pedidos</p>
+      </a>
+    </section>
+
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+  <script src="js/firebase-config.js"></script>
+  <script>
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      try {
+        const doc = await db.collection(COLLECTION_USERS).doc(user.uid).get();
+        if (!doc.exists || doc.data().role !== 'escola') {
+          alert('Acesso negado. Área exclusiva de escolas.');
+          await auth.signOut();
+          window.location.href = 'index.html';
+          return;
+        }
+
+        const data = doc.data();
+        document.getElementById('profName').textContent = data.nomeCompleto;
+        document.getElementById('profRole').textContent = data.cargo;
+
+        if (data.fotoUrl) {
+          const img = document.getElementById('profPhoto');
+          img.src = data.fotoUrl;
+          img.style.display = 'block';
+          document.getElementById('profPhotoPlaceholder').style.display = 'none';
+        } else {
+          document.getElementById('profPhotoPlaceholder').textContent = data.nomeCompleto.charAt(0);
+        }
+
+      } catch (err) {
+        console.error('Erro ao carregar perfil:', err);
+      }
+    });
+
+    document.getElementById('btnLogout').addEventListener('click', () => {
+      auth.signOut().then(() => window.location.href = 'index.html');
+    });
+  </script>
+</body>
+</html>

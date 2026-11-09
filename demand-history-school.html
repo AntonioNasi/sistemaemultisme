@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#5abe64" />
+  <title>Minhas Solicitações - E-Multi SME</title>
+  <link rel="manifest" href="manifest.json" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header class="app-header">
+    <a href="school.html" class="btn btn-outline btn-sm">← Voltar</a>
+    <div class="header-brand">Minhas Solicitações</div>
+    <div style="width: 60px;"></div>
+  </header>
+
+  <main class="app-main">
+    <div id="historyList" class="history-list">
+      <p class="loading-text">Carregando...</p>
+    </div>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+  <script src="js/firebase-config.js"></script>
+  <script>
+    const historyList = document.getElementById('historyList');
+
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      try {
+        const snap = await db.collection('demandas')
+          .where('uidEscola', '==', user.uid)
+          .get();
+
+        if (snap.empty) {
+          historyList.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-icon">📂</div>
+              <h3>Nenhuma solicitação</h3>
+              <p>Você ainda não abriu nenhuma demanda.</p>
+            </div>
+          `;
+          return;
+        }
+
+        const demands = [];
+        snap.forEach(doc => demands.push({ id: doc.id, ...doc.data() }));
+        demands.sort((a, b) => b.criadoEm.toMillis() - a.criadoEm.toMillis());
+
+        historyList.innerHTML = '';
+        
+        demands.forEach(d => {
+          const dateStr = d.criadoEm.toDate().toLocaleDateString('pt-BR');
+          
+          let statusBadge = '';
+          if (d.status === 'pendente') statusBadge = '<span class="demand-badge" style="background:#f7d210; color:#333;">Aguardando Triagem</span>';
+          else if (d.status === 'aberta') statusBadge = `<span class="demand-badge" style="background:#eaf5fc; color:var(--azul);">Em Atendimento (${d.nomeProfissional})</span>`;
+          else if (d.status === 'concluida') statusBadge = '<span class="demand-badge" style="background:#eaf7eb; color:var(--verde);">Concluída</span>';
+
+          const card = document.createElement('div');
+          card.className = 'history-card';
+          card.innerHTML = `
+            <div class="history-card-header">
+              <span class="history-date">📅 ${dateStr}</span>
+              ${statusBadge}
+            </div>
+            <div class="history-card-body">
+              <h4>${d.tema}</h4>
+              <p>${d.detalhesIniciais ? d.detalhesIniciais.substring(0, 80) + '...' : ''}</p>
+            </div>
+          `;
+          historyList.appendChild(card);
+        });
+
+      } catch (err) {
+        console.error(err);
+        historyList.innerHTML = '<p class="error-text">Erro ao carregar.</p>';
+      }
+    });
+  </script>
+</body>
+</html>
