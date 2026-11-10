@@ -1089,3 +1089,29 @@ body {
   justify-content: flex-end;
   flex-wrap: wrap; /* Para não quebrar em telas pequenas */
 }
+
+
+
+
+/* ============================================================
+ *  RODAPÉ PADRONIZADO
+ * ============================================================ */
+.app-footer {
+  text-align: center;
+  padding: 24px 20px;
+  margin-top: 40px;
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+  border-top: 1px solid var(--borda);
+  background: transparent;
+}
+
+/* Garante que o rodapé fique no final da tela em telas curtas */
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.app-main {
+  flex: 1; /* Faz o main ocupar todo o espaço disponível, empurrando o footer para baixo */
+}
