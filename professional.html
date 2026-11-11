@@ -125,7 +125,7 @@
       }
     });
 
-    async function loadOpenDemands(uid) {
+        async function loadOpenDemands(uid) {
       try {
         const snap = await db.collection('demandas')
           .where('uidProfissional', '==', uid)
@@ -141,31 +141,40 @@
         const demands = [];
         snap.forEach(doc => demands.push({ id: doc.id, ...doc.data() }));
         
-        // Ordena pela data de criação (mais recente primeiro)
+        // Ordena pela data de criação (mais antiga primeiro = primeiro da fila)
         demands.sort((a, b) => {
           const dateA = a.criadoEm ? a.criadoEm.toMillis() : 0;
           const dateB = b.criadoEm ? b.criadoEm.toMillis() : 0;
-          return dateB - dateA;
+          return dateA - dateB;
         });
 
         openDemandsCount.textContent = demands.length;
         openDemandsList.innerHTML = '';
 
-        demands.forEach(d => {
-          const dateStr = d.criadoEm 
+        demands.forEach((d, index) => {
+          // PROTEÇÃO: Verifica se a data existe antes de tentar formatar
+          const dateStr = d.criadoEm && typeof d.criadoEm.toDate === 'function'
             ? d.criadoEm.toDate().toLocaleDateString('pt-BR')
             : 'Data indisponível';
 
+          // Se foi a escola que abriu, mostra o nome dela. Se foi o profissional, mostra "Aberta por você".
+          const origem = d.uidEscola ? d.nomeEscola : 'Aberta por você';
+          
           const card = document.createElement('a');
           card.href = `demand-view.html?id=${d.id}`;
           card.className = 'demand-card';
           card.innerHTML = `
             <div class="demand-card-header">
-              <span class="demand-date">📅 Aberta em: ${dateStr}</span>
+              <span class="demand-date">📅 ${dateStr}</span>
               <span class="demand-badge">Em andamento</span>
             </div>
             <h4>${d.tema}</h4>
             <p><strong>Escola:</strong> ${d.escola}</p>
+            
+            <!-- Fila da Demanda -->
+            <div class="demand-queue-badge">
+              Fila: #${index + 1}
+            </div>
           `;
           openDemandsList.appendChild(card);
         });
@@ -173,6 +182,8 @@
       } catch (err) {
         console.error('Erro ao carregar demandas abertas:', err);
         openDemandsList.innerHTML = '<p class="error-text">Erro ao carregar demandas.</p>';
+        // Descomente a linha abaixo se quiser ver o erro exato na tela
+        // alert('Erro real: ' + err.message);
       }
     }
 

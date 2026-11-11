@@ -1115,3 +1115,34 @@ body {
 .app-main {
   flex: 1; /* Faz o main ocupar todo o espaço disponível, empurrando o footer para baixo */
 }
+
+
+
+.demand-queue-badge {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--azul);
+  padding: 2px 8px;
+  border-radius: 12px;
+  opacity: 0.8;
+}
+/* Garante que o card seja referência para o posicionamento */
+.demand-card { position: relative; padding-bottom: 40px; }
+
+
+
+/* ============================================================
+ *  LARGURA ESPECÍFICA DO PAINEL ADMIN
+ * ============================================================ */
+@media (min-width: 768px) {
+  .app-main.admin-main {
+    max-width: 1200px; /* Mais largo */
+    width: 100%;
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+}

@@ -34,7 +34,7 @@
     </section>
 
     <!-- Botões de Ação -->
-    <section class="action-grid">
+    <section class="action-grid" style="grid-template-columns: 1fr 1fr;">
       <a href="demand-new-school.html" class="action-card">
         <div class="action-icon icon-new">➕</div>
         <h3>Nova Solicitação</h3>
@@ -43,9 +43,21 @@
 
       <a href="demand-history-school.html" class="action-card">
         <div class="action-icon icon-history">📂</div>
-        <h3>Minhas Solicitações</h3>
-        <p>Acompanhar o status dos pedidos</p>
+        <h3>Histórico</h3>
+        <p>Solicitações concluídas</p>
       </a>
+    </section>
+
+    <!-- NOVO: Demandas Ativas da Escola -->
+    <section class="open-demands-section">
+      <div class="section-title">
+        <h3>Minhas Solicitações Ativas</h3>
+        <span id="activeDemandsCount" class="badge-count">0</span>
+      </div>
+      
+      <div id="activeDemandsList" class="demands-grid">
+        <p class="loading-text">Buscando solicitações...</p>
+      </div>
     </section>
 
   </main>
@@ -57,11 +69,8 @@
 
   <script src="js/firebase-config.js"></script>
   <script>
-    auth.onAuthStateChanged(async (user) => {
-      if (!user) {
-        window.location.href = 'index.html';
-        return;
-      }
+        auth.onAuthStateChanged(async (user) => {
+      if (!user) { window.location.href = 'index.html'; return; }
 
       try {
         const doc = await db.collection(COLLECTION_USERS).doc(user.uid).get();
@@ -85,10 +94,91 @@
           document.getElementById('profPhotoPlaceholder').textContent = data.nomeCompleto.charAt(0);
         }
 
+        // Carrega as demandas ativas (Pendentes e Abertas)
+        loadActiveDemands(user.uid);
+
       } catch (err) {
         console.error('Erro ao carregar perfil:', err);
       }
     });
+
+    async function loadActiveDemands(uid) {
+      const list = document.getElementById('activeDemandsList');
+      const countBadge = document.getElementById('activeDemandsCount');
+      
+      try {
+        const snap = await db.collection('demandas').where('uidEscola', '==', uid).get();
+        
+        // Filtra apenas as ativas
+        const active = [];
+        snap.forEach(doc => {
+          const data = doc.data();
+          if (data.status === 'pendente' || data.status === 'aberta') {
+            active.push({ id: doc.id, ...data });
+          }
+        });
+
+        if (active.length === 0) {
+          list.innerHTML = '<p class="empty-text">Nenhuma solicitação ativa no momento.</p>';
+          countBadge.textContent = '0';
+          return;
+        }
+
+        active.sort((a, b) => b.criadoEm.toMillis() - a.criadoEm.toMillis());
+        countBadge.textContent = active.length;
+        list.innerHTML = '';
+
+        active.forEach(d => {
+          const dateStr = d.criadoEm.toDate().toLocaleDateString('pt-BR');
+          
+          let statusBadge = '';
+          if (d.status === 'pendente') {
+            statusBadge = '<span class="demand-badge" style="background:#f7d210; color:#333;">Aguardando Triagem</span>';
+          } else if (d.status === 'aberta') {
+            statusBadge = `<span class="demand-badge" style="background:#eaf5fc; color:var(--azul);">Em Atendimento (${d.nomeProfissional})</span>`;
+          }
+
+          const card = document.createElement('div');
+          card.className = 'demand-card';
+          card.style.cursor = 'default'; // Não é clicável para a escola
+          card.innerHTML = `
+            <div class="demand-card-header">
+              <span class="demand-date">📅 ${dateStr}</span>
+              ${statusBadge}
+            </div>
+            <h4>${d.tema}</h4>
+            <p>${d.detalhesIniciais ? d.detalhesIniciais.substring(0, 60) + '...' : ''}</p>
+            
+            ${d.status === 'pendente' ? `
+              <div style="margin-top: 12px; text-align: right;">
+                <button class="btn btn-sm btn-outline" onclick="cancelDemand('${d.id}')" style="color: var(--erro); border-color: var(--erro);">Cancelar Solicitação</button>
+              </div>
+            ` : ''}
+          `;
+          list.appendChild(card);
+        });
+
+      } catch (err) {
+        console.error(err);
+        list.innerHTML = '<p class="error-text">Erro ao carregar solicitações.</p>';
+      }
+    }
+
+    window.cancelDemand = async (id) => {
+      if (!confirm('Tem certeza que deseja cancelar esta solicitação? Ela não será mais enviada para os profissionais.')) return;
+      
+      try {
+        await db.collection('demandas').doc(id).update({
+          status: 'cancelada',
+          atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert('Solicitação cancelada.');
+        // Recarrega a lista
+        auth.currentUser && loadActiveDemands(auth.currentUser.uid);
+      } catch (err) {
+        alert('Erro ao cancelar: ' + err.message);
+      }
+    };
 
     document.getElementById('btnLogout').addEventListener('click', () => {
       auth.signOut().then(() => window.location.href = 'index.html');
