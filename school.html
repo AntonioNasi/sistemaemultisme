@@ -128,8 +128,10 @@
         countBadge.textContent = active.length;
         list.innerHTML = '';
 
-        active.forEach(d => {
-          const dateStr = d.criadoEm.toDate().toLocaleDateString('pt-BR');
+                active.forEach(d => {
+          const dateStr = d.criadoEm && typeof d.criadoEm.toDate === 'function'
+            ? d.criadoEm.toDate().toLocaleDateString('pt-BR')
+            : 'Data indisponível';
           
           let statusBadge = '';
           if (d.status === 'pendente') {
@@ -138,9 +140,19 @@
             statusBadge = `<span class="demand-badge" style="background:#eaf5fc; color:var(--azul);">Em Atendimento (${d.nomeProfissional})</span>`;
           }
 
+          // LÓGICA DE MENSAGEM NÃO LIDA PARA A ESCOLA
+          let temMensagemNova = false;
+          if (d.mensagens && d.mensagens.length > 0) {
+            const ultimaMsg = d.mensagens[d.mensagens.length - 1];
+            if (ultimaMsg.autorId !== auth.currentUser.uid) {
+              temMensagemNova = true;
+            }
+          }
+
           const card = document.createElement('div');
           card.className = 'demand-card';
-          card.style.cursor = 'default'; // Não é clicável para a escola
+          card.style.cursor = 'default';
+          
           card.innerHTML = `
             <div class="demand-card-header">
               <span class="demand-date">📅 ${dateStr}</span>
@@ -149,11 +161,20 @@
             <h4>${d.tema}</h4>
             <p>${d.detalhesIniciais ? d.detalhesIniciais.substring(0, 60) + '...' : ''}</p>
             
-            ${d.status === 'pendente' ? `
-              <div style="margin-top: 12px; text-align: right;">
-                <button class="btn btn-sm btn-outline" onclick="cancelDemand('${d.id}')" style="color: var(--erro); border-color: var(--erro);">Cancelar Solicitação</button>
-              </div>
-            ` : ''}
+            <div style="margin-top: 12px; text-align: right; display: flex; justify-content: flex-end; gap: 8px; align-items: center;">
+              
+              ${d.status === 'pendente' ? `
+                <button class="btn btn-sm btn-outline" onclick="cancelDemand('${d.id}')" style="color: var(--erro); border-color: var(--erro);">Cancelar</button>
+              ` : ''}
+
+              ${d.status === 'aberta' ? `
+                <button class="btn btn-sm btn-outline" onclick="openChatModal('${d.id}')" style="display: flex; align-items: center; gap: 6px;">
+                  ${temMensagemNova ? '<span class="dot-new-msg"></span>' : ''}
+                  💬 Conversar
+                </button>
+              ` : ''}
+              
+            </div>
           `;
           list.appendChild(card);
         });
@@ -182,6 +203,113 @@
 
     document.getElementById('btnLogout').addEventListener('click', () => {
       auth.signOut().then(() => window.location.href = 'index.html');
+    });
+
+        
+  </script>
+  
+
+    <!-- MODAL: CHAT DA DEMANDA -->
+  <div id="modalChat" class="modal-overlay">
+    <div class="modal-card" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3>Conversa com a Equipe</h3>
+        <button class="modal-close" onclick="document.getElementById('modalChat').classList.remove('visible')">&times;</button>
+      </div>
+      <div class="modal-form">
+        <div id="chatMessagesSchool" class="chat-container" style="min-height: 200px; max-height: 400px;">
+          <p class="empty-text">Carregando...</p>
+        </div>
+        <form id="formChatSchool" class="chat-input-area" style="margin-top: 12px;">
+          <input type="hidden" id="chatDemandId" />
+          <input type="text" id="chatInputSchool" placeholder="Digite uma mensagem para o profissional..." autocomplete="off" required />
+          <button type="submit" class="btn btn-primary btn-sm" id="btnSendChatSchool">Enviar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+  <script>
+    // --- LÓGICA DO CHAT DA ESCOLA ---
+    let currentChatDemand = null;
+
+    window.openChatModal = async (demandId) => {
+      document.getElementById('chatDemandId').value = demandId;
+      const chatDiv = document.getElementById('chatMessagesSchool');
+      chatDiv.innerHTML = '<p class="empty-text">Carregando...</p>';
+      
+      document.getElementById('modalChat').classList.add('visible');
+
+      try {
+        const doc = await db.collection('demandas').doc(demandId).get();
+        currentChatDemand = { id: doc.id, ...doc.data() };
+        
+        renderSchoolChat();
+      } catch (err) {
+        chatDiv.innerHTML = '<p class="error-text">Erro ao carregar mensagens.</p>';
+      }
+    };
+
+    function renderSchoolChat() {
+      const chatDiv = document.getElementById('chatMessagesSchool');
+      const mensagens = currentChatDemand.mensagens || [];
+      
+      if (mensagens.length === 0) {
+        chatDiv.innerHTML = '<p class="empty-text">Nenhuma mensagem ainda. Inicie a conversa.</p>';
+        return;
+      }
+
+      chatDiv.innerHTML = '';
+      mensagens.sort((a, b) => new Date(a.data) - new Date(b.data));
+      
+      mensagens.forEach(m => {
+        // Compara o ID do autor com o UID do usuário logado (Escola)
+        const isMe = m.autorId === auth.currentUser.uid;
+        const el = document.createElement('div');
+        el.className = `chat-bubble ${isMe ? 'chat-mine' : 'chat-theirs'}`;
+        el.innerHTML = `
+          <span class="chat-author">${m.autorNome}</span>
+          <p>${m.texto}</p>
+          <span class="chat-time">${new Date(m.data).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span>
+        `;
+        chatDiv.appendChild(el);
+      });
+      chatDiv.scrollTop = chatDiv.scrollHeight;
+    }
+
+    document.getElementById('formChatSchool').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const demandId = document.getElementById('chatDemandId').value;
+      const input = document.getElementById('chatInputSchool');
+      const texto = input.value.trim();
+      if (!texto) return;
+
+      const btn = document.getElementById('btnSendChatSchool');
+      btn.disabled = true;
+
+      const novaMensagem = {
+        id: 'msg_' + Date.now(),
+        autorId: auth.currentUser.uid,
+        autorNome: document.getElementById('profName').textContent, // Nome da escola
+        texto: texto,
+        data: new Date().toISOString()
+      };
+
+      try {
+        const novasMensagens = [...(currentChatDemand.mensagens || []), novaMensagem];
+        await db.collection('demandas').doc(demandId).update({
+          mensagens: novasMensagens
+        });
+        
+        currentChatDemand.mensagens = novasMensagens;
+        input.value = '';
+        renderSchoolChat();
+      } catch (err) {
+        alert('Erro ao enviar: ' + err.message);
+      } finally {
+        btn.disabled = false;
+      }
     });
   </script>
   <script src="js/version.js"></script>

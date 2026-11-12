@@ -82,6 +82,17 @@
           <p class="loading-text">Nenhum anexo enviado.</p>
         </div>
       </section>
+      <!-- Seção de Mensagens -->
+      <section class="list-section" style="grid-column: 1 / -1; margin-top: 10px;">
+        <h3>💬 Mensagens com a Escola</h3>
+        <div id="chatMessages" class="chat-container">
+          <p class="empty-text">Nenhuma mensagem trocada ainda.</p>
+        </div>
+        <form id="formChat" class="chat-input-area">
+          <input type="text" id="chatInput" placeholder="Digite uma mensagem para a escola..." autocomplete="off" required />
+          <button type="submit" class="btn btn-primary btn-sm" id="btnSendChat">Enviar</button>
+        </form>
+      </section>
     </div>
   </main>
 
@@ -205,6 +216,12 @@
       }
       currentUser = user;
       loadDemand();
+
+      // Salve o perfil no escopo global para usarmos no chat
+      const userDoc = await db.collection(COLLECTION_USERS).doc(user.uid).get();
+      window.userProfile = userDoc.data();
+      currentUser = user;
+      loadDemand();
     });
 
     async function loadDemand() {
@@ -298,6 +315,32 @@
           `;
           listAnexos.appendChild(el);
         });
+      }
+
+      // Renderiza o Chat
+      const chatDiv = document.getElementById('chatMessages');
+      const mensagens = currentDemand.mensagens || [];
+      
+      if (mensagens.length === 0) {
+        chatDiv.innerHTML = '<p class="empty-text">Nenhuma mensagem trocada ainda.</p>';
+      } else {
+        chatDiv.innerHTML = '';
+        // Ordena por data
+        mensagens.sort((a, b) => new Date(a.data) - new Date(b.data));
+        
+        mensagens.forEach(m => {
+          const isMe = m.autorId === currentUser.uid;
+          const el = document.createElement('div');
+          el.className = `chat-bubble ${isMe ? 'chat-mine' : 'chat-theirs'}`;
+          el.innerHTML = `
+            <span class="chat-author">${m.autorNome}</span>
+            <p>${m.texto}</p>
+            <span class="chat-time">${formatDateShort(m.data.split('T')[0])} ${new Date(m.data).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span>
+          `;
+          chatDiv.appendChild(el);
+        });
+        // Rola para o final
+        chatDiv.scrollTop = chatDiv.scrollHeight;
       }
     }
 
@@ -428,6 +471,42 @@
     window.closeModal = (id) => {
       document.getElementById(id).classList.remove('visible');
     };
+
+    // --- LÓGICA DE MENSAGENS ---
+    document.getElementById('formChat').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('chatInput');
+      const texto = input.value.trim();
+      if (!texto) return;
+
+      const btn = document.getElementById('btnSendChat');
+      btn.disabled = true;
+      btn.textContent = '...';
+
+      const novaMensagem = {
+        id: 'msg_' + Date.now(),
+        autorId: currentUser.uid,
+        autorNome: userProfile ? userProfile.nomeCompleto : 'Profissional',
+        texto: texto,
+        data: new Date().toISOString()
+      };
+
+      try {
+        const novasMensagens = [...(currentDemand.mensagens || []), novaMensagem];
+        await db.collection('demandas').doc(demandId).update({
+          mensagens: novasMensagens
+        });
+        
+        currentDemand.mensagens = novasMensagens;
+        input.value = '';
+        renderDemandUI(); // Recarrega o chat
+      } catch (err) {
+        alert('Erro ao enviar mensagem: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Enviar';
+      }
+    });
   </script>
   <script src="js/version.js"></script>
 </body>

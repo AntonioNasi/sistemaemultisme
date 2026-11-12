@@ -151,15 +151,23 @@
         openDemandsCount.textContent = demands.length;
         openDemandsList.innerHTML = '';
 
-        demands.forEach((d, index) => {
-          // PROTEÇÃO: Verifica se a data existe antes de tentar formatar
+                demands.forEach((d, index) => {
           const dateStr = d.criadoEm && typeof d.criadoEm.toDate === 'function'
             ? d.criadoEm.toDate().toLocaleDateString('pt-BR')
             : 'Data indisponível';
 
-          // Se foi a escola que abriu, mostra o nome dela. Se foi o profissional, mostra "Aberta por você".
           const origem = d.uidEscola ? d.nomeEscola : 'Aberta por você';
           
+          // LÓGICA DE MENSAGEM NÃO LIDA
+          let temMensagemNova = false;
+          if (d.mensagens && d.mensagens.length > 0) {
+            const ultimaMsg = d.mensagens[d.mensagens.length - 1];
+            // Se a última mensagem NÃO foi enviada pelo profissional logado
+            if (ultimaMsg.autorId !== auth.currentUser.uid) {
+              temMensagemNova = true;
+            }
+          }
+
           const card = document.createElement('a');
           card.href = `demand-view.html?id=${d.id}`;
           card.className = 'demand-card';
@@ -171,8 +179,9 @@
             <h4>${d.tema}</h4>
             <p><strong>Escola:</strong> ${d.escola}</p>
             
-            <!-- Fila da Demanda -->
-            <div class="demand-queue-badge">
+            <!-- Fila da Demanda e Ícone de Mensagem -->
+            <div class="demand-queue-badge" style="display: flex; align-items: center; gap: 6px;">
+              ${temMensagemNova ? '<span class="dot-new-msg" title="Nova mensagem da escola"></span>' : ''}
               Fila: #${index + 1}
             </div>
           `;
